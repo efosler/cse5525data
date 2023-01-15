@@ -1,0 +1,31 @@
+Simple diagram of the seating arrangement in the ICSI meeting room.
+
+The ordering of seat numbers is as specified below.
+
+
+
+   Door
+
+
+	  1         2            3           4
+     -----------------------------------------------------------------------
+     |                      |                       |                      |   S
+     |                      |                       |                      |   c
+     |                      |                       |                      |   r
+    9|   D1        D2       |   D3  PDA     D4      |                      |   e
+     |                      |                       |                      |   e
+     |                      |                       |                      |   n
+     |                      |                       |                      |
+     -----------------------------------------------------------------------
+	  8         7            6           5
+
+
+
+D1, D2, D3, D4  - Desktop PZM microphones
+
+The following are the channel assignments:
+
+D1 - chanE
+D2 - chanF
+D3 - chan6
+D4 - chan7

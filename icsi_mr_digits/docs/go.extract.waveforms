@@ -1,0 +1,118 @@
+#!/usr/local/bin/perl
+#
+# Extract digit utterances from session level shortened waveforms.
+#
+# Usage: go.extract.waveforms       (no arguments required)
+#
+# This script takes segmentation information from utterance_list and extracts the 
+# corresponding distant microphone waveforms (captured by the 4 PZM microphones 
+# of the ICSI Meeting Corpus.). The included speech data is segmented at the recording 
+# session level. Each file in mrd_data/ includes a whole recording session for one 
+# speaker in the specified meeting. It is interesting to keep the whole session 
+# unsegmented to allow for higher flexibility, for instance, for noise spectrum 
+# estimation in speech enhancement algorithms. Further down in this code you will 
+# find a section to include your own speech enhancement code.
+#
+# A new directory called mrd_segmented_data/ will be created and the segmented waveforms 
+# and transcripts (references) are stored in it. The format of the output wav file 
+# indicates sex, speaker, the digits, and a number to indicate which transcript. For 
+# example,
+#
+#  Bmr002-me011-c2-u1-7-0196-488o7o1.wav
+#
+#      Meeting id: Bmr002     (Berkeley meeting Recorder meeting 002)
+#      Speaker id: me011      (Male, native English speaker, 011)
+#          Mic id: c2         (Crown PZM desktop microphone)
+#   Transmit type: u1         (Unknown wired type)
+#         Channel: 7
+# Transcript line: 0196
+#   Transcription: 488o7o1    (Four Eight Eight Oh Seven Oh One)
+#      
+#
+#   Marc Ferras, July 2005
+#   International Computer Science Institute
+#   http://www.icsi.berkeley.edu
+
+use FileHandle;
+
+$datadir = "mrd_data";
+$dest = "mrd_segmented_data";
+$uttListFileName = "utterance_list";
+#$refListFileName = $dest . "/" . "references";
+
+print "\
+     Session level recordings stored in $datadir/ are to be segmented using the \
+   start/end time boundary information in $uttListFileName. A directory called \
+   $dest/ will be created and the segmented utterances will be stored into it. \
+   Do you want to proceed? [y/n]: ";
+
+$ans = <STDIN>;
+if ($ans =~ /.*\b[^y].*\b/i)
+{
+	die("Script aborted");
+}
+
+print "\nCreating $dest/ directory ...\n";
+`mkdir -p $dest`;
+
+open(UTTERANCE_LIST, "$uttListFileName") || die("$uttListFileName could not be opened for reading: $!\n");;
+#open(REF_LIST, "> $refListFileName") || die("$refListFileName could not be opened for writing: $!\n");;
+
+print "Extracting distant microphone segmented waveforms to $dest/ ...\n\n";
+while (<UTTERANCE_LIST>)
+{
+	chomp;
+	@splitLine = split(/ /);
+
+	#Extract fields
+	$uttId = $splitLine[0];
+	$dataFile = $splitLine[1];
+	$iniTime = $splitLine[2];
+	$endTime = $splitLine[3];
+	$outputFileName = $splitLine[4];
+	@transcript = @splitLine[5..$#splitLine];
+
+	$s=sprintf("   Utterance %d (%s, from %.3f to %.3f seconds).\n", $uttId, $dataFile, $iniTime, $endTime);
+	print $s;
+
+	#Extract segmented waveforms
+	foreach $channel (6,7,E,F)
+	{
+		#Store source and target waveform filenames
+		$sessionCompressedFileName = "$datadir/$dataFile\_$channel.wav.shn";
+		$sessionFileName = "$dest/$dataFile\_$channel.wav";
+		$sessionProcessedFileName = "$dest/$dataFile\_$channel_processed.wav";
+		
+		`bin/shorten -x $sessionCompressedFileName $sessionFileName`;
+
+		##############################################################################
+		#                                                                            #
+		# SESSION LEVEL NOISE-REDUCTION STARTS HERE                                  #
+		#                                                                            #
+
+		# The following line must be replaced by the desired noise reduction code
+		`cp -f $sessionFileName $sessionProcessedFileName`;
+
+		#                                                                            #
+		# SESSION LEVEL NOISE-REDUCTION ENDS HERE                                    #
+		#                                                                            #
+		##############################################################################
+
+		$_ = "$dest/$outputFileName.wav";
+		s/-X-/-$channel-/g;
+		$targetFileName = $_;
+		#Actual waveform extraction
+		print "      Creating $targetFileName ...\n";
+		`sndcat $sessionProcessedFileName -k $iniTime -e $endTime -o $targetFileName`;
+
+		#Remove temporary session waveform files
+		`rm -f $sessionFileName`;
+		`rm -f $sessionProcessedFileName`;
+	}
+
+	#Update references if desired
+	#print REF_LIST "$outputFileName @transcript\n";
+}
+
+close(UTTERANCE_LIST);
+close(REF_LIST);
